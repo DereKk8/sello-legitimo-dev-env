@@ -1,0 +1,87 @@
+services:
+  configuracion-eleccion-postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: elecciones_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - configuracion_eleccion_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d elecciones_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gestion-pre-electoral-postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gestion_pre_electoral
+      POSTGRES_USER: gestion_pre_electoral
+      POSTGRES_PASSWORD: gestion_pre_electoral
+    ports:
+      - "5434:5432"
+    volumes:
+      - gestion_pre_electoral_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestion_pre_electoral -d gestion_pre_electoral"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  configuracion-eleccion:
+    build:
+      context: ./ConfiguracionEleccion-service
+      dockerfile: Dockerfile
+    depends_on:
+      configuracion-eleccion-postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://configuracion-eleccion-postgres:5432/elecciones_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      GRPC_PORT: 9090
+    ports:
+      - "8081:8081"
+      - "9090:9090"
+
+  gestion-pre-electoral:
+    build:
+      context: ./GestionPreElectoral-service
+      dockerfile: Dockerfile
+    depends_on:
+      gestion-pre-electoral-postgres:
+        condition: service_healthy
+      configuracion-eleccion:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://gestion-pre-electoral-postgres:5432/gestion_pre_electoral
+      DB_USUARIO: gestion_pre_electoral
+      DB_CLAVE: gestion_pre_electoral
+      PUERTO: 8082
+      ELECCIONES_GRPC_HOST: configuracion-eleccion
+      ELECCIONES_GRPC_PORT: 9090
+    ports:
+      - "8082:8082"
+
+  mock-jurados:
+    build:
+      context: ./MockJurados-service
+      dockerfile: Dockerfile
+    depends_on:
+      configuracion-eleccion:
+        condition: service_started
+    environment:
+      PUERTO: 8083
+      GRPC_PORT: 9091
+      ELECCIONES_GRPC_HOST: configuracion-eleccion
+      ELECCIONES_GRPC_PORT: 9090
+    ports:
+      - "8083:8083"
+      - "9091:9091"
+
+volumes:
+  configuracion_eleccion_data:
+  gestion_pre_electoral_data:

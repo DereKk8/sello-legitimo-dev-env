@@ -1,0 +1,50 @@
+services:
+  authelia:
+    image: authelia/authelia:latest
+    environment:
+      - TZ=America/Bogota
+    volumes:
+      - ./gateway/config/authelia/configuration.yml:/config/configuration.yml:ro
+      - ./gateway/config/authelia/users_database.yml:/config/users_database.yml:ro
+      - ./gateway/config/authelia/oidc_private_key.pem:/config/oidc_private_key.pem:ro
+
+  gateway:
+    image: caddy:2.8.4
+    depends_on:
+      - authelia
+      - configuracion-eleccion
+      - gestion-pre-electoral
+      - mock-jurados
+      - election-conf-frontend
+      - preelectoral-frontend
+    ports:
+      - "8091:443"
+    volumes:
+      - ./gateway/config/caddy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  election-conf-frontend:
+    build:
+      context: ./frontend-ConfiguracionElecciones
+      dockerfile: Dockerfile
+      args:
+        VITE_API_GATEWAY_URL: https://eleccion.sello-legitimo.site:8091
+        VITE_AUTHELIA_URL: https://auth.sello-legitimo.site:8091
+        VITE_OIDC_CLIENT_ID: frontend-configuracion
+        VITE_OIDC_REDIRECT_URI: https://eleccion.sello-legitimo.site:8091/callback
+
+  preelectoral-frontend:
+    build:
+      context: ./frontend-GestionPreelectoral
+      dockerfile: Dockerfile
+      args:
+        VITE_API_GATEWAY_URL: https://preeleccion.sello-legitimo.site:8091
+        VITE_AUTHELIA_URL: https://auth.sello-legitimo.site:8091
+        VITE_OIDC_CLIENT_ID: frontend-gestion-pre
+        VITE_OIDC_REDIRECT_URI: https://preeleccion.sello-legitimo.site:8091/callback
+        VITE_DEBUG_FRONTEND: "false"
+
+volumes:
+  caddy_data:
+  caddy_config:
