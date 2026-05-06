@@ -1,26 +1,30 @@
-# Sello Legítimo - Entorno de Desarrollo Local
+# Sello Legitimo - Entorno de Desarrollo Local
 
-Este repositorio contiene la orquestación de Docker Compose para levantar el entorno de desarrollo local del proyecto **Sello Legítimo**.
+Este repositorio contiene la orquestacion de Docker Compose para levantar el entorno de desarrollo local del proyecto **Sello Legitimo**.
+
+> **Nota importante:** Este repo es **independiente** del repositorio del Gateway de produccion. Toda la configuracion necesaria de Caddy y Authelia para desarrollo local esta incluida aqui, de modo que no necesitas clonar ni tocar el repo del gateway (cuya configuracion remota puede estar desactualizada).
 
 ## Prerrequisitos
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/)
 - [Git](https://git-scm.com/)
+- `openssl` (para generar la clave privada OIDC)
+- `python3` (para ejecutar el script de configuracion inicial del gateway)
 
 ## Repositorios Necesarios
 
-Para levantar el entorno completo, necesitas clonar los siguientes repositorios en la **misma carpeta padre** donde clonarás este repositorio de orquestación:
+Para levantar el entorno completo, clona los siguientes repositorios en la **misma carpeta padre** donde clonaras este repositorio de orquestacion:
 
-| Repositorio | Descripción | Característica / Funcionalidad |
+| Repositorio | Descripcion | Caracteristica / Funcionalidad |
 |---|---|---|
-| `ConfiguracionEleccion-service` | Backend de Configuración de Elecciones (Java + gRPC) | Gestión de elecciones, candidatos, mesas y configuración central del sistema |
-| `GestionPreElectoral-service` | Backend de Gestión Pre-Electoral (Java) | Preparación pre-electoral, reportes y tareas previas a la jornada electoral |
-| `MockJurados-service` | Backend Mock de Jurados (Java + gRPC) | Simulación del servicio de jurados para pruebas locales |
-| `frontend-ConfiguracionElecciones` | Frontend de Configuración de Elecciones | Interfaz web para configurar elecciones, candidatos y mesas |
-| `frontend-GestionPreelectoral` | Frontend de Gestión Pre-Electoral | Interfaz web para la gestión pre-electoral y reportes |
+| `ConfiguracionEleccion-service` | Backend de Configuracion de Elecciones (Java + gRPC) | Gestion de elecciones, candidatos, mesas y configuracion central del sistema |
+| `GestionPreElectoral-service` | Backend de Gestion Pre-Electoral (Java) | Preparacion pre-electoral, reportes y tareas previas a la jornada electoral |
+| `MockJurados-service` | Backend Mock de Jurados (Java + gRPC) | Simulacion del servicio de jurados para pruebas locales |
+| `frontend-ConfiguracionElecciones` | Frontend de Configuracion de Elecciones | Interfaz web para configurar elecciones, candidatos y mesas |
+| `frontend-GestionPreelectoral` | Frontend de Gestion Pre-Electoral | Interfaz web para la gestion pre-electoral y reportes |
 
-> **Nota:** Este repositorio (`sello-legitimo-dev-env`) debe clonarse junto a los anteriores, de modo que los `build.context` de los `docker-compose` resuelvan correctamente las rutas relativas.
+> **No necesitas clonar el repositorio del Gateway.** La configuracion de Caddy y Authelia para desarrollo local ya esta incluida en este repo.
 
 ## Estructura de Directorios Esperada
 
@@ -29,12 +33,14 @@ sello-legitimo-workspace/
 ├── sello-legitimo-dev-env/           # Este repositorio
 │   ├── docker-compose.local.yml
 │   ├── docker-compose.local.gateway.yml
+│   ├── setup-gateway.sh
 │   └── gateway/
 │       └── config/
 │           ├── authelia/
-│           │   ├── configuration.yml
+│           │   ├── configuration.yml.template
 │           │   ├── users_database.yml
-│           │   └── oidc_private_key.pem
+│           │   ├── configuration.yml   # Generado por setup-gateway.sh
+│           │   └── oidc_private_key.pem  # Generado por setup-gateway.sh
 │           └── caddy/
 │               └── Caddyfile.local
 ├── ConfiguracionEleccion-service/
@@ -44,18 +50,32 @@ sello-legitimo-workspace/
 └── frontend-GestionPreelectoral/
 ```
 
-## Configuración del Gateway
+## Configuracion Inicial del Gateway
 
-Antes de levantar los servicios, asegúrate de contar con los archivos de configuración del gateway dentro de la carpeta `gateway/config/`:
+Antes de levantar el gateway por primera vez, ejecuta el script de configuracion desde la raiz de este repositorio:
 
-- `gateway/config/authelia/configuration.yml`
-- `gateway/config/authelia/users_database.yml`
-- `gateway/config/authelia/oidc_private_key.pem`
-- `gateway/config/caddy/Caddyfile.local`
+```bash
+chmod +x setup-gateway.sh
+./setup-gateway.sh
+```
 
-> **Importante:** El archivo `oidc_private_key.pem` es un secreto. **No lo subas a Git.** Solicítalo al líder técnico o genera uno nuevo para tu entorno local.
+Este script hace lo siguiente:
+1. Genera la clave privada RSA para OIDC (`gateway/config/authelia/oidc_private_key.pem`).
+2. Genera secrets aleatorios para Authelia (session, encryption, JWT, HMAC).
+3. Crea el archivo `gateway/config/authelia/configuration.yml` a partir de la plantilla incluida.
 
-## Cómo Levantar el Entorno
+> **No subas los archivos generados a Git.** Estan protegidos por `.gitignore` por defecto.
+
+## Credenciales de Prueba
+
+Authelia viene preconfigurado con los siguientes usuarios de prueba (definidos en `users_database.yml`):
+
+| Usuario | Contrasena | Roles |
+|---|---|---|
+| `registraduria` | `12345` | frontend-configuracion, frontend-gestion-pre, admin |
+| `superadmin` | `12345` | frontend-configuracion, frontend-gestion-pre, admin |
+
+## Como Levantar el Entorno
 
 ### 1. Clonar los repositorios
 
@@ -64,11 +84,15 @@ Antes de levantar los servicios, asegúrate de contar con los archivos de config
 mkdir sello-legitimo-workspace
 cd sello-legitimo-workspace
 
-# Clonar este repositorio de orquestación
+# Clonar este repositorio de orquestacion
 git clone https://github.com/DereKk8/sello-legitimo-dev-env.git
 cd sello-legitimo-dev-env
 
-# Clonar los servicios backend y frontend (ajusta las URLs según tu organización)
+# Ejecutar la configuracion inicial del gateway
+chmod +x setup-gateway.sh
+./setup-gateway.sh
+
+# Clonar los servicios backend y frontend (ajusta las URLs segun tu organizacion)
 git clone https://github.com/DereKk8/ConfiguracionEleccion-service.git ../ConfiguracionEleccion-service
 git clone https://github.com/DereKk8/GestionPreElectoral-service.git ../GestionPreElectoral-service
 git clone https://github.com/DereKk8/MockJurados-service.git ../MockJurados-service
@@ -76,72 +100,82 @@ git clone https://github.com/DereKk8/frontend-ConfiguracionElecciones.git ../fro
 git clone https://github.com/DereKk8/frontend-GestionPreelectoral.git ../frontend-GestionPreelectoral
 ```
 
-> **Nota:** Si los repositorios pertenecen a otra organización o usuario, reemplaza `DereKk8` por el nombre correspondiente.
+> **Nota:** Si los repositorios pertenecen a otra organizacion o usuario, reemplaza `DereKk8` por el nombre correspondiente.
 
 ### 2. Levantar backend y bases de datos
 
-Desde la raíz de `sello-legitimo-dev-env`:
+Desde la raiz de `sello-legitimo-dev-env`:
 
 ```bash
 docker compose -f docker-compose.local.yml up --build -d
 ```
 
 Esto levanta:
-- `configuracion-eleccion-postgres` (PostgreSQL para Configuración Elección) — expuesto en `localhost:5433`
-- `gestion-pre-electoral-postgres` (PostgreSQL para Gestión Pre-Electoral) — expuesto en `localhost:5434`
-- `configuracion-eleccion` (Backend Configuración Elección) — `localhost:8081` (HTTP), `localhost:9090` (gRPC)
-- `gestion-pre-electoral` (Backend Gestión Pre-Electoral) — `localhost:8082`
+- `configuracion-eleccion-postgres` (PostgreSQL para Configuracion Eleccion) — expuesto en `localhost:5433`
+- `gestion-pre-electoral-postgres` (PostgreSQL para Gestion Pre-Electoral) — expuesto en `localhost:5434`
+- `configuracion-eleccion` (Backend Configuracion Eleccion) — `localhost:8081` (HTTP), `localhost:9090` (gRPC)
+- `gestion-pre-electoral` (Backend Gestion Pre-Electoral) — `localhost:8082`
 - `mock-jurados` (Mock Jurados) — `localhost:8083`, `localhost:9091` (gRPC)
 
 ### 3. Levantar gateway, Authelia y frontends
 
-Una vez que los servicios backend estén saludables:
+Una vez que los servicios backend esten saludables:
 
 ```bash
 docker compose -f docker-compose.local.gateway.yml up --build -d
 ```
 
 Esto levanta:
-- `authelia` — Servicio de autenticación / SSO
+- `authelia` — Servicio de autenticacion / SSO
 - `gateway` (Caddy) — Reverse proxy en `https://localhost:8091`
-- `election-conf-frontend` — Frontend Configuración Elecciones
-- `preelectoral-frontend` — Frontend Gestión Pre-Electoral
+- `election-conf-frontend` — Frontend Configuracion Elecciones
+- `preelectoral-frontend` — Frontend Gestion Pre-Electoral
 
-### 4. Verificar que todo está corriendo
+### 4. Verificar que todo esta corriendo
 
 ```bash
 docker compose -f docker-compose.local.yml ps
 docker compose -f docker-compose.local.gateway.yml ps
 ```
 
-## Acceso a la Aplicación
+## Acceso a la Aplicacion
 
 | Servicio | URL Local |
 |---|---|
 | Gateway (Caddy) | `https://localhost:8091` |
-| Frontend Configuración Elecciones | `https://eleccion.sello-legitimo.site:8091` |
-| Frontend Gestión Pre-Electoral | `https://preeleccion.sello-legitimo.site:8091` |
+| Frontend Configuracion Elecciones | `https://eleccion.sello-legitimo.site:8091` |
+| Frontend Gestion Pre-Electoral | `https://preeleccion.sello-legitimo.site:8091` |
 | Authelia | `https://auth.sello-legitimo.site:8091` |
-| Backend Configuración Elección | `http://localhost:8081` |
-| Backend Gestión Pre-Electoral | `http://localhost:8082` |
+| Backend Configuracion Eleccion | `http://localhost:8081` |
+| Backend Gestion Pre-Electoral | `http://localhost:8082` |
 | Backend Mock Jurados | `http://localhost:8083` |
 
 > **Nota:** Las URLs con dominio `*.sello-legitimo.site` requieren que tengas configuradas las entradas en tu archivo `hosts` apuntando a `127.0.0.1`, o que uses el puerto `8091` directamente con `localhost`.
+
+### Entradas recomendadas en /etc/hosts
+
+Para poder usar los dominios locales con HTTPS, anade estas lineas a tu archivo `hosts`:
+
+```
+127.0.0.1  auth.sello-legitimo.site
+127.0.0.1  eleccion.sello-legitimo.site
+127.0.0.1  preeleccion.sello-legitimo.site
+```
 
 ## Puertos Expuestos
 
 | Puerto | Servicio |
 |---|---|
-| `5433` | PostgreSQL — Configuración Elección |
-| `5434` | PostgreSQL — Gestión Pre-Electoral |
-| `8081` | Backend Configuración Elección (HTTP) |
-| `8082` | Backend Gestión Pre-Electoral |
+| `5433` | PostgreSQL — Configuracion Eleccion |
+| `5434` | PostgreSQL — Gestion Pre-Electoral |
+| `8081` | Backend Configuracion Eleccion (HTTP) |
+| `8082` | Backend Gestion Pre-Electoral |
 | `8083` | Backend Mock Jurados |
-| `9090` | Backend Configuración Elección (gRPC) |
+| `9090` | Backend Configuracion Eleccion (gRPC) |
 | `8091` | Gateway Caddy (HTTPS) |
 | `9091` | Backend Mock Jurados (gRPC) |
 
-## Comandos Útiles
+## Comandos Utiles
 
 ```bash
 # Ver logs de todos los servicios backend
@@ -156,17 +190,21 @@ docker compose -f docker-compose.local.yml down
 # Detener gateway y frontends
 docker compose -f docker-compose.local.gateway.yml down
 
-# Detener todo y eliminar volúmenes (⚠️ borra datos de PostgreSQL)
+# Detener todo y eliminar volumenes (⚠️ borra datos de PostgreSQL)
 docker compose -f docker-compose.local.yml down -v
 docker compose -f docker-compose.local.gateway.yml down -v
+
+# Re-generar la configuracion del gateway (si cambia la plantilla)
+./setup-gateway.sh
 ```
 
 ## Notas para el Equipo de Desarrollo
 
-- **Configuración Elección** es el servicio central. Tanto `GestionPreElectoral-service` como `MockJurados-service` dependen de él para la comunicación gRPC.
-- Si solo necesitas trabajar en un frontend específico, puedes levantar solo `docker-compose.local.yml` y usar el backend directamente sin pasar por Caddy (según la configuración de cada proyecto).
-- Asegúrate de que los `Dockerfile` de cada servicio estén en la raíz de su respectivo repositorio, tal como lo esperan los `docker-compose`.
-- Si realizas cambios en el código de algún servicio, reconstruye la imagen con:
+- **Configuracion Eleccion** es el servicio central. Tanto `GestionPreElectoral-service` como `MockJurados-service` dependen de el para la comunicacion gRPC.
+- Si solo necesitas trabajar en un frontend especifico, puedes levantar solo `docker-compose.local.yml` y usar el backend directamente sin pasar por Caddy (segun la configuracion de cada proyecto).
+- Asegurate de que los `Dockerfile` de cada servicio esten en la raiz de su respectivo repositorio, tal como lo esperan los `docker-compose`.
+- Si realizas cambios en el codigo de algun servicio, reconstruye la imagen con:
   ```bash
   docker compose -f docker-compose.local.yml up --build -d <nombre-del-servicio>
   ```
+- La configuracion del gateway (`Caddyfile.local`, plantilla de Authelia, etc.) se mantiene **en este repo**. Si necesitas ajustar algo del gateway para desarrollo local, hazlo aqui y no en el repositorio del gateway de produccion.

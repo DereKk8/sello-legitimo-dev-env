@@ -1,0 +1,18 @@
+# Secrets de Authelia generados localmente
+gateway/config/authelia/oidc_private_key.pem
+gateway/config/authelia/configuration.yml
+gateway/config/authelia/db.sqlite3
+gateway/config/authelia/emails.txt
+
+# Variables de entorno
+.env
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

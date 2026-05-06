@@ -1,0 +1,91 @@
+server:
+  address: tcp://0.0.0.0:9091
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: ForwardAuth
+log:
+  level: info
+authentication_backend:
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2
+      argon2:
+        variant: argon2id
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+        key_length: 32
+        salt_length: 16
+access_control:
+  default_policy: deny
+  rules:
+  - domain: auth.sello-legitimo.site
+    policy: bypass
+  - domain:
+    - eleccion.sello-legitimo.site
+    - preeleccion.sello-legitimo.site
+    policy: one_factor
+session:
+  secret: {{SESSION_SECRET}}
+  cookies:
+  - domain: sello-legitimo.site
+    authelia_url: https://auth.sello-legitimo.site:8091
+    default_redirection_url: https://preeleccion.sello-legitimo.site:8091
+storage:
+  encryption_key: {{STORAGE_ENCRYPTION_KEY}}
+  local:
+    path: /config/db.sqlite3
+notifier:
+  filesystem:
+    filename: /config/emails.txt
+identity_validation:
+  reset_password:
+    jwt_secret: {{JWT_SECRET}}
+    jwt_lifespan: 5 minutes
+    jwt_algorithm: HS256
+identity_providers:
+  oidc:
+    hmac_secret: {{OIDC_HMAC_SECRET}}
+    jwks:
+    - key: |
+{{OIDC_PRIVATE_KEY}}
+    lifespans:
+      access_token: 1 hour
+      authorize_code: 1 minute
+      id_token: 1 hour
+      refresh_token: 90 minutes
+    clients:
+    - client_id: frontend-configuracion
+      client_name: Frontend Configuracion
+      public: true
+      authorization_policy: one_factor
+      consent_mode: implicit
+      redirect_uris:
+      - https://eleccion.sello-legitimo.site:8091/callback
+      - http://localhost:5173/callback
+      scopes:
+      - openid
+      - profile
+      - email
+      grant_types:
+      - authorization_code
+      response_types:
+      - code
+    - client_id: frontend-gestion-pre
+      client_name: Frontend Gestion Pre
+      public: true
+      authorization_policy: one_factor
+      consent_mode: implicit
+      redirect_uris:
+      - https://preeleccion.sello-legitimo.site:8091/callback
+      - http://localhost:5174/callback
+      scopes:
+      - openid
+      - profile
+      - email
+      grant_types:
+      - authorization_code
+      response_types:
+      - code

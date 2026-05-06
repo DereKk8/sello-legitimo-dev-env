@@ -1,0 +1,20 @@
+users:
+  registraduria:
+    displayname: 'Usuario Registraduria'
+    ## Contrasena: 12345
+    password: '$argon2id$v=19$m=65536,t=3,p=4$NHBmRDRYNDd0ekZYSmpDVg$+KBnaXZJRnFCVpp6QY4+A5nKAY8NDBc5OguZDxkTc+o'
+    email: 'registraduria@sello-legitimo.site'
+    groups:
+      - 'frontend-configuracion'
+      - 'frontend-gestion-pre'
+      - 'admin'
+
+  superadmin:
+    displayname: 'Superadmin'
+    ## Contrasena: 12345
+    password: '$argon2id$v=19$m=65536,t=3,p=4$NHBmRDRYNDd0ekZYSmpDVg$+KBnaXZJRnFCVpp6QY4+A5nKAY8NDBc5OguZDxkTc+o'
+    email: 'superadmin@sello-legitimo.site'
+    groups:
+      - 'frontend-configuracion'
+      - 'frontend-gestion-pre'
+      - 'admin'
